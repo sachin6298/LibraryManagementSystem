@@ -1,0 +1,15 @@
+
+# LMS icon-start deployment rules BEGIN
+build/
+cmake-build-*/
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile
+*.dat
+LibraryManagementSystemData/
+backup_before_*/
+*.backup_*
+*~
+*.swp
+# LMS icon-start deployment rules END

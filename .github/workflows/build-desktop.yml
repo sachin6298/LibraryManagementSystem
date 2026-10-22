@@ -1,0 +1,125 @@
+name: Build Linux and Windows packages
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-linux:
+    name: Build Linux x86_64
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Install Qt 6.10.2
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: '6.10.2'
+          host: linux
+          target: desktop
+          arch: gcc_64
+          cache: true
+          install-deps: true
+
+      - name: Configure Release build
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+
+      - name: Compile
+        run: cmake --build build --parallel 2
+
+      - name: Install application and Qt runtime dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          cmake --install build --prefix "$RUNNER_TEMP/LibraryManagementSystem-Linux"
+
+      - name: Create Linux archive
+        shell: bash
+        run: |
+          set -euo pipefail
+          tar -czf "$GITHUB_WORKSPACE/LibraryManagementSystem-Linux-x86_64.tar.gz" \
+            -C "$RUNNER_TEMP/LibraryManagementSystem-Linux" .
+
+      - name: Upload Linux package
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-package
+          path: LibraryManagementSystem-Linux-x86_64.tar.gz
+          if-no-files-found: error
+          retention-days: 14
+
+  build-windows:
+    name: Build Windows x64
+    runs-on: windows-2022
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Install Qt 6.10.2 for MSVC 2022
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: '6.10.2'
+          host: windows
+          target: desktop
+          arch: win64_msvc2022_64
+          cache: true
+
+      - name: Configure Release build
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+
+      - name: Compile
+        run: cmake --build build --config Release --parallel 2
+
+      - name: Install application and Qt runtime dependencies
+        shell: pwsh
+        run: |
+          $package = Join-Path $env:RUNNER_TEMP 'LibraryManagementSystem-Windows'
+          cmake --install build --config Release --prefix $package
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          "PACKAGE_DIR=$package" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      - name: Create Windows archive
+        shell: pwsh
+        run: |
+          $archive = Join-Path $env:GITHUB_WORKSPACE 'LibraryManagementSystem-Windows-x64.zip'
+          Compress-Archive -Path (Join-Path $env:PACKAGE_DIR '*') -DestinationPath $archive -Force
+
+      - name: Upload Windows package
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-package
+          path: LibraryManagementSystem-Windows-x64.zip
+          if-no-files-found: error
+          retention-days: 14
+
+  publish-release:
+    name: Publish tagged release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [build-linux, build-windows]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download Linux package
+        uses: actions/download-artifact@v4
+        with:
+          name: linux-package
+          path: release-assets
+
+      - name: Download Windows package
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-package
+          path: release-assets
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            release-assets/LibraryManagementSystem-Linux-x86_64.tar.gz
+            release-assets/LibraryManagementSystem-Windows-x64.zip
+          generate_release_notes: true

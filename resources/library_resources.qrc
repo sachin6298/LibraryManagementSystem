@@ -1,0 +1,8 @@
+<RCC>
+    <qresource prefix="/icons">
+        <file alias="library.png">library.png</file>
+    </qresource>
+    <qresource prefix="/logos">
+        <file alias="bit-logo.png">bit-logo.png</file>
+    </qresource>
+</RCC>
