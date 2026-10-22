@@ -26,7 +26,7 @@ jobs:
           host: linux
           target: desktop
           arch: gcc_64
-          archives: qtbase
+          
           cache: true
           install-deps: true
 
@@ -72,7 +72,7 @@ jobs:
           host: windows
           target: desktop
           arch: win64_msvc2022_64
-          archives: qtbase
+          
           cache: true
 
       - name: Configure Release build
